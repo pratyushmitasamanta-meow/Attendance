@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Your Attendance Management System</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #11161d;
+      --muted: #778199;
+      --text: #e6ebf5;
+      --accent: #5ec2ff;
+      --danger: #ff6b6b;
+      --success: #47d97f;
+      --off: #a1a7b3;
+      --border: #1c2430;
+      --highlight: #1b2635;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%; background: radial-gradient(1200px 600px at 20% 0%, #0d1219 0%, #0b0f14 35%, #0b0f14 100%), var(--bg);
+      color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    .center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .card { width: 100%; max-width: 640px; background: #11161d; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .header { padding: 28px; }
+    .title { font-size: 20px; }
+    .body { padding: 24px 28px; }
+    .row { display: grid; gap: 12px; }
+    .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: #0e131a; color: var(--text); }
+    .actions { display: flex; gap: 10px; margin-top: 12px; }
+    .btn { padding: 11px 16px; border-radius: 12px; border: 1px solid var(--border); background: #121924; color: var(--text); cursor: pointer; }
+    .btn-primary { background: #1c2a3f; }
+    .btn-accent { background: #1e3547; color: #cdecff; }
+    .dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
+    .dialog { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .dialog .head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+    .dialog .content { padding: 18px 22px; }
+    .dialog .foot { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+    .shell { max-width: 1200px; width: 100%; }
+    .toolbar { display: flex; justify-content: space-between; padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+    .table-wrap { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px; }
+    .status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: #0f1620; cursor: pointer; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .s-present .dot { background: var(--success); }
+    .s-absent .dot { background: var(--danger); }
+    .s-off .dot { background: var(--off); }
+    .today { background: var(--highlight); }
+    .cell-id { color: var(--muted); font-size: 12px; }
+    .edit-tip { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    .tag { padding: 6px 10px; border: 1px solid var(--border); background: #101722; border-radius: 999px; color: var(--muted); font-size: 12px; }
+    .emptystate { text-align: center; padding: 48px 24px; color: var(--muted); }
+    .emptystate h3 { color: var(--text); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Register Dialog -->
+  <div id="registerDialog" class="dialog-backdrop">
+    <div class="dialog">
+      <div class="head">
+        <h3>Register manager</h3>
+        <button class="btn" id="regClose">Close</button>
+      </div>
+      <div class="content">
+        <div class="row">
+          <div><div class="label">Manager full name</div><input type="text" id="regName" placeholder="e.g., Priya Sen"/></div>
+          <div><div class="label">Phone</div><input type="tel" id="regPhone" placeholder="e.g., 9876543210"/></div>
+          <div><div class="label">Email</div><input type="email" id="regEmail" placeholder="e.g., priya@company.com"/></div>
+        </div>
+      </div>
+      <div class="foot">
+        <button class="btn" id="regCancel">Cancel</button>
+        <button class="btn btn-accent" id="regSubmit">Register</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Trainee Dialog -->
+  <div id="traineeDialog" class="dialog-backdrop">
+    <div class="dialog">
+      <div class="head">
+        <h3>Add trainee</h3>
+        <button class="btn" id="trClose">Close</button>
+      </div>
+      <div class="content">
+        <div class="row">
+          <div><div class="label">Full name</div><input type="text" id="trName" placeholder="e.g., Arjun Das"/></div>
+          <div><div class="label">Email</div><input type="email" id="trEmail" placeholder="e.g., arjun@example.com"/></div>
+          <div><div class="label">Phone</div><input type="tel" id="trPhone" placeholder="e.g., 9000000000"/></div>
+        </div>
+      </div>
+      <div class="foot">
+        <button class="btn" id="trCancel">Cancel</button>
+        <button class="btn btn-accent" id="trSubmit">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Date Dialog -->
+  <div id="dateDialog" class="dialog-backdrop">
+    <div class="dialog">
+      <div class="head">
+        <h3>Add date</h3>
+        <button class="btn" id="dtClose">Close</button>
+      </div>
+      <div class="content">
+        <div class="row">
+          <div>
+            <div class="label">Select date</div>
+            <input type="date" id="dtPicker"/>
+            <div class="edit-tip">Adds a new attendance column for the selected day.</div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">
+        <button class="btn" id="dtCancel">Cancel</button>
+        <button class="btn btn-accent" id="dtSubmit">Add date</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Storage and state
+    const STORE_KEY = "attendance_app_multi_v1";
+    const state = { auth: { email: null }, managers: {} };
+
+    function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    function load() { const raw = localStorage.getItem(STORE_KEY); if (raw) { try { Object.assign(state, JSON.parse(raw)); } catch {} } }
+
+    // Date helpers
+    const todayStr = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    };
+    const fmtHuman = d => {
+      const [y,m,day] = d.split("-");
+      const date = new Date(Number(y), Number(m)-1, Number(day));
+      return date.toLocaleDateString(undefined,{ day:"2-digit", month:"short", year:"numeric" });
+    };
+
+    // Manager helpers
+    function ensureManagerData(email) {
+      const key = email.trim().toLowerCase();
+      if (!state.managers[key]) {
+        state.managers[key] = { info: null, data: { trainees: [], dates: [], attendance: {} } };
+      }
+      return state.managers[key];
+    }
+    function currentManager() {
+      const key = state.auth.email;
+      if (!key) return null;
+      return state.managers[key] || null;
+    }
+
+    // Auth
+    function registerManager({ name, phone, email, password }) {
+      const mgr = ensureManagerData(email);
+      mgr.info = { name, phone, email: email.trim().toLowerCase(), password };
+      save();
+    }
+    function login(email, password) {
+      const key = email.trim().toLowerCase();
+      const mgr = state.managers[key];
+      if (mgr && mgr.info && mgr.info.password === password) {
+        state.auth.email = key;
+        save();
+        return true;
+      }
+      return false;
+    }
+    function logout() { state.auth.email = null; save(); }
+
+    // Data operations per manager
+    function addTrainee({ name, email, phone }) {
+      const mgr = currentManager();
+      if (!mgr) return;
+      const id = String(Date.now());
+      mgr.data.trainees.push({ id, name, email, phone });
+      mgr.data.attendance[id] = mgr.data.attendance[id] || {};
+      if (mgr.data.dates.length === 0) {
+        mgr.data.dates.push(todayStr());
+      }
+      save();
+    }
+    function addDate(dateStr) {
+      const mgr = currentManager();
+      if (!mgr || !dateStr) return;
+      if (!mgr.data.dates.includes(dateStr)) {
+        mgr.data.dates.push(dateStr);
+        mgr.data.dates.sort((a,b)=> new Date(a) - new Date(b));
+        save();
+      }
+    }
+    function setAttendance(traineeId, dateStr, value) {
+      const mgr = currentManager();
+      if (!mgr) return;
+      mgr.data.attendance[traineeId] = mgr.data.attendance[traineeId] || {};
+      mgr.data.attendance[traineeId][dateStr] = value;
+      save();
+    }
+    function ensureTodayDate() {
+      const mgr = currentManager();
+      if (mgr && mgr.data.dates.length > 0) {
+        const t = todayStr();
+        if (!mgr.data.dates.includes(t)) {
+          mgr.data.dates.push(t);
+          mgr.data.dates.sort((a,b)=> new Date(a) - new Date(b));
+          save();
+        }
+      }
+    }
+
+    // Reports
+    function buildCSV({ traineeId = null, period = "monthly" }) {
+      const mgr = currentManager();
+      const lines = [];
+      const header = ["Trainee ID","Full Name","Date","Status"];
+      lines.push(header.join(","));
+      if (!mgr) return lines.join("\n");
+
+      const filterByPeriod = (d) => {
+        const dt = new Date(d);
+        const now = new Date();
+        const sameYear = dt.getFullYear() === now.getFullYear();
+        if (period === "annual") return sameYear;
+        if (period === "monthly") return sameYear && dt.getMonth() === now.getMonth();
+        if (period === "quarterly") {
+          const q = Math.floor(now.getMonth()/3);
+          return sameYear && Math.floor(dt.getMonth()/3) === q;
+        }
+        return true;
+      };
+
+      const trainees = traineeId
+        ? mgr.data.trainees.filter(t => t.id === traineeId)
+        : mgr.data.trainees;
+
+      for (const t of trainees) {
+        const att = mgr.data.attendance[t.id] || {};
+        for (const d of mgr.data.dates.filter(filterByPeriod)) {
+          const status = att[d] || "";
+          lines.push([t.id, csvEsc(t.name), d, csvEsc(status)].join(","));
+        }
+      }
+      return lines.join("\n");
+    }
+    function csvEsc(s) {
+      if (s == null) return "";
+      const str = String(s);
+      if (/[",\n]/.test(str)) return `"${str.replace(/"/g,'""')}"`;
+      return str;
+    }
+    function download(filename, text) {
+      const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+      a.remove(); URL.revokeObjectURL(url);
+    }
+
+    // UI
+    const app = document.getElementById("app");
+
+    function render() {
+      app.innerHTML = "";
+      ensureTodayDate();
+      if (!state.auth.email) {
+        renderLanding();
+      } else {
+        renderDashboard();
+      }
+    }
+
+    function renderLanding() {
+      const wrap = document.createElement("div");
+      wrap.className = "center";
+      wrap.innerHTML = `
+        <div class="card">
+          <div class="header">
+            <div class="title">Your Attendance Management System</div>
+          </div>
+          <div class="body">
+            <div class="row">
+              <div>
+                <div class="label">Email</div>
+                <input type="email" id="loginEmail" placeholder="you@company.com"/>
+              </div>
+              <div>
+                <div class="label">Password</div>
+                <input type="password" id="loginPass" placeholder="••••••••"/>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-primary" id="btnLogin">Login</button>
+              <button class="btn" id="btnRegister">Register</button>
+            </div>
+          </div>
+        </div>
+      `;
+      app.appendChild(wrap);
+
+      wrap.querySelector("#btnLogin").onclick = () => {
+        const email = wrap.querySelector("#loginEmail").value.trim();
+        const pass = wrap.querySelector("#loginPass").value.trim();
+        if (!email || !pass) { alert("Enter email and password."); return; }
+        const ok = login(email, pass);
+        if (!ok) { alert("Invalid credentials. Please check email and password or register."); return; }
+        render();
+      };
+      wrap.querySelector("#btnRegister").onclick = () => openDialog("registerDialog");
+
+      // Register dialog events
+      document.getElementById("regClose").onclick = () => closeDialog("registerDialog");
+      document.getElementById("regCancel").onclick = () => closeDialog("registerDialog");
+      document.getElementById("regSubmit").onclick = () => {
+        const name = document.getElementById("regName").value.trim();
+        const phone = document.getElementById("regPhone").value.trim();
+        const email = document.getElementById("regEmail").value.trim();
+        const password = document.getElementById("loginPass").value.trim(); // from landing field
+        if (!name || !phone || !email) { alert("Please fill all fields."); return; }
+        if (!password) { alert("Please enter a password in the landing form before registering."); return; }
+        registerManager({ name, phone, email, password });
+        // Auto-login for convenience
+        login(email, password);
+        closeDialog("registerDialog");
+        render();
+      };
+    }
+
+    function renderDashboard() {
+      const mgr = currentManager();
+      const trainees = mgr?.data.trainees || [];
+      const dates = mgr?.data.dates || [];
+
+      const shell = document.createElement("div");
+      shell.className = "center";
+      shell.innerHTML = `
+        <div class="shell">
+          <div class="toolbar">
+            <div>
+              <div class="title" style="font-size:18px;">Dashboard</div>
+              <div class="label">Welcome ${mgr?.info?.name ? mgr.info.name : ""}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="tag">${trainees.length} trainees</span>
+              <span class="tag">${dates.length} dates</span>
+              <button class="btn" id="btnAddTrainee">Add trainee</button>
+              <button class="btn" id="btnAddDate">Add date</button>
+              <select id="reportScope" class="btn">
+                <option value="all">Whole report</option>
+              </select>
+              <select id="reportPeriod" class="btn">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+              </select>
+              <button class="btn btn-accent" id="btnDownload">Download report</button>
+              <button class="btn" id="btnLogout">Logout</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            ${trainees.length === 0 ? `
+              <div class="emptystate">
+                <h3>No trainees yet</h3>
+                <p>Add your first trainee to start attendance. Today’s date will appear automatically.</p>
+                <button class="btn btn-primary" id="btnEmptyAdd">Add trainee</button>
+              </div>
+            ` : `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Serial / Trainee ID</th>
+                    <th>Full name</th>
+                    ${dates.map(d=>`<th>${fmtHuman(d)}</th>`).join("")}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${trainees.map((t, idx) => `
+                    <tr>
+                      <td class="cell-id">${String(idx+1).padStart(2,"0")} / ${t.id}</td>
+                      <td>${t.name}</td>
+                      ${dates.map(d => {
+                        const att = mgr.data.attendance[t.id]?.[d] || "";
+                        const isToday = d === todayStr();
+                        const cls = att === "present" ? "s-present" : att === "absent" ? "s-absent" : att === "off" ? "s-off" : "";
+                        const ro = isToday ? "" : "readonly";
+                        const rowClass = isToday ? "today" : "";
+                        return `
+                          <td class="${rowClass}">
+                            <div class="status ${cls} ${ro}" data-tid="${t.id}" data-date="${d}">
+                              <span class="dot"></span>
+                              <span class="txt">${att || "—"}</span>
+                            </div>
+                            ${isToday ? `<div class="edit-tip">Editable</div>` : `<div class="edit-tip">Tap to correct if needed</div>`}
+                          </td>
+                        `;
+                      }).join("")}
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            `}
+          </div>
+        </div>
+      `;
+      app.appendChild(shell);
+
+      // Populate reportScope for individual reports
+      const scopeSel = shell.querySelector("#reportScope");
+      if (scopeSel) {
+        for (const t of trainees) {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = `Individual: ${t.name}`;
+          scopeSel.appendChild(opt);
+        }
+      }
+
+      // Events
+      const addTraineeBtn = shell.querySelector("#btnAddTrainee");
+      if (addTraineeBtn) addTraineeBtn.onclick = () => openDialog("traineeDialog");
+      const addDateBtn = shell.querySelector("#btnAddDate");
+      if (addDateBtn) addDateBtn.onclick = () => openDialog("dateDialog");
+      const emptyAddBtn = shell.querySelector("#btnEmptyAdd");
+      if (emptyAddBtn) emptyAddBtn.onclick = () => openDialog("traineeDialog");
+
+      const logoutBtn = shell.querySelector("#btnLogout");
+      logoutBtn.onclick = () => { logout(); render(); };
+
+      const dlBtn = shell.querySelector("#btnDownload");
+      dlBtn.onclick = () => {
+        const scope = shell.querySelector("#reportScope").value;
+        const period = shell.querySelector("#reportPeriod").value;
+        const traineeId = scope === "all" ? null : scope;
+        const csv = buildCSV({ traineeId, period });
+        const label = traineeId ? `individual_${traineeId}` : "whole";
+        download(`attendance_${label}_${period}.csv`, csv);
+      };
+
+      // Click to cycle status
+      shell.querySelectorAll(".status").forEach(el => {
+        el.addEventListener("click", () => {
+          const tid = el.dataset.tid;
+          const dateStr = el.dataset.date;
+          const txtEl = el.querySelector(".txt");
+          const isToday = dateStr === todayStr();
+
+          const current = mgr.data.attendance[tid]?.[dateStr] || "";
+          const next = cycle(current);
+          setAttendance(tid, dateStr, next);
+
+          el.classList.remove("s-present","s-absent","s-off");
+          if (next === "present") el.classList.add("s-present");
+          if (next === "absent") el.classList.add("s-absent");
+          if (next === "off") el.classList.add("s-off");
+          txtEl.textContent = next || "—";
+
+          if (isToday) el.parentElement.classList.add("today");
+        });
+      });
+
+      // Trainee dialog
+      document.getElementById("trClose").onclick = () => closeDialog("traineeDialog");
+      document.getElementById("trCancel").onclick = () => closeDialog("traineeDialog");
+      document.getElementById("trSubmit").onclick = () => {
+        const name = document.getElementById("trName").value.trim();
+        const email = document.getElementById("trEmail").value.trim();
+        const phone = document.getElementById("trPhone").value.trim();
+        if (!name || !email || !phone) { alert("Please fill all trainee fields."); return; }
+        addTrainee({ name, email, phone });
+        closeDialog("traineeDialog");
+        render();
+      };
+
+      // Date dialog
+      document.getElementById("dtClose").onclick = () => closeDialog("dateDialog");
+      document.getElementById("dtCancel").onclick = () => closeDialog("dateDialog");
+      document.getElementById("dtSubmit").onclick = () => {
+        const d = document.getElementById("dtPicker").value;
+        if (!d) { alert("Please select a date."); return; }
+        addDate(d);
+        closeDialog("dateDialog");
+        render();
+      };
+    }
+
+    // Dialog helpers
+    function openDialog(id) {
+      const el = document.getElementById(id);
+      el.style.display = "flex";
+    }
+    function closeDialog(id) {
+      const el = document.getElementById(id);
+      el.style.display = "none";
+    }
+
+    // Status cycle
+    function cycle(current) {
+      const order = ["", "present", "absent", "off"];
+      const i = order.indexOf(current);
+      return order[(i+1) % order.length];
+    }
+
+    // Boot
+    load();
+    render();
+  </script>
+</body>
+</html>
